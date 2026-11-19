@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">হিসাব খাতা</string>
+    <string name="app_tagline">আপনার দৈনন্দিন আয়-ব্যয়, বাজেট ও সঞ্চয়ের বিশ্বস্ত সঙ্গী</string>
+    <string name="sign_in_google">Google দিয়ে সাইন ইন করুন</string>
+    <string name="sign_in_subtitle">অফলাইন ব্যবহার ও স্বয়ংক্রিয় ক্লাউড ব্যাকআপের জন্য আপনার গুগল অ্যাকাউন্ট যুক্ত করুন</string>
+    <string name="nav_dashboard">হোম</string>
+    <string name="nav_transactions">হিসাব</string>
+    <string name="nav_plan">পরিকল্পনা</string>
+    <string name="nav_reports">রিপোর্ট</string>
+    <string name="nav_settings">সেটিংস</string>
+    <string name="cd_app_hero">হিসাব খাতা আর্থিক ব্যবস্থাপনা চিত্র</string>
+    <string name="cd_add_transaction">নতুন আয় বা ব্যয় যোগ করুন</string>
+    <string name="cd_back">ফিরে যান</string>
+    <string name="cd_sync_status">সিঙ্ক অবস্থা</string>
+    <string name="cd_lock_app">অ্যাপ লক</string>
+    <string name="cd_delete">মুছে ফেলুন</string>
+    <string name="cd_edit">সম্পাদনা করুন</string>
+</resources>

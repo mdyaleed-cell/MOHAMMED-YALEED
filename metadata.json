@@ -1,0 +1,6 @@
+{
+  "name": "হিসাব খাতা",
+  "description": "দৈনিক আয়-ব্যয়, বাজেট, সঞ্চয়, দেনা-পাওনা, বিল রিমাইন্ডার এবং বিস্তারিত রিপোর্টিংসহ পূর্ণাঙ্গ ব্যক্তিগত হিসাব-নিকাশ অ্যাপ",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

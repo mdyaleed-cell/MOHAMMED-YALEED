@@ -1,0 +1,221 @@
+{
+  "entities": {
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A daily income or expense entry belonging to a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID" },
+        "type": { "type": "string", "enum": ["INCOME", "EXPENSE"] },
+        "amount": { "type": "number", "description": "Positive monetary amount" },
+        "categoryId": { "type": "string", "description": "Referenced category ID" },
+        "categoryName": { "type": "string", "description": "Denormalized category display name" },
+        "paymentMethodId": { "type": "string", "description": "Referenced payment method ID" },
+        "paymentMethodName": { "type": "string", "description": "Denormalized payment method name" },
+        "note": { "type": "string", "description": "Optional note or description" },
+        "dateEpochMillis": { "type": "integer", "description": "Transaction date in epoch milliseconds" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": [
+        "userId",
+        "type",
+        "amount",
+        "categoryId",
+        "categoryName",
+        "paymentMethodId",
+        "paymentMethodName",
+        "note",
+        "dateEpochMillis",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Income or expense category managed by the user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["INCOME", "EXPENSE"] },
+        "iconKey": { "type": "string" },
+        "colorHex": { "type": "integer" },
+        "defaultCategory": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "name",
+        "type",
+        "iconKey",
+        "colorHex",
+        "defaultCategory",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PaymentMethod": {
+      "title": "PaymentMethod",
+      "description": "Cash, bank account, or mobile banking wallet",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "methodType": { "type": "string", "enum": ["CASH", "BANK", "MOBILE_BANKING"] },
+        "openingBalance": { "type": "number" },
+        "colorHex": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "name",
+        "methodType",
+        "openingBalance",
+        "colorHex",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Budget": {
+      "title": "Budget",
+      "description": "Monthly spending limit for an expense category",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "categoryName": { "type": "string" },
+        "monthKey": { "type": "string", "description": "YYYY-MM format" },
+        "limitAmount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "categoryId",
+        "categoryName",
+        "monthKey",
+        "limitAmount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SavingsGoal": {
+      "title": "SavingsGoal",
+      "description": "User savings target for future needs or emergencies",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "targetAmount": { "type": "number" },
+        "savedAmount": { "type": "number" },
+        "targetDateEpochMillis": { "type": "integer" },
+        "colorHex": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "title",
+        "targetAmount",
+        "savedAmount",
+        "targetDateEpochMillis",
+        "colorHex",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Debt": {
+      "title": "Debt",
+      "description": "Personal loan or debt tracker record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "personName": { "type": "string" },
+        "phone": { "type": "string" },
+        "debtType": { "type": "string", "enum": ["LENT", "BORROWED"] },
+        "amount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "note": { "type": "string" },
+        "dueDateEpochMillis": { "type": "integer" },
+        "status": { "type": "string", "enum": ["ACTIVE", "SETTLED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "personName",
+        "phone",
+        "debtType",
+        "amount",
+        "paidAmount",
+        "note",
+        "dueDateEpochMillis",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BillReminder": {
+      "title": "BillReminder",
+      "description": "Monthly recurring or one-time utility/rent bill reminder",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "dueDayOfMonth": { "type": "integer" },
+        "categoryName": { "type": "string" },
+        "recurringMonthly": { "type": "boolean" },
+        "reminderEnabled": { "type": "boolean" },
+        "lastPaidMonthKey": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "title",
+        "amount",
+        "dueDayOfMonth",
+        "categoryName",
+        "recurringMonthly",
+        "reminderEnabled",
+        "lastPaidMonthKey",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "User-scoped income and expense transactions"
+    },
+    "/users/{userId}/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "User-scoped income and expense categories"
+    },
+    "/users/{userId}/payment_methods/{methodId}": {
+      "schema": { "$ref": "#/entities/PaymentMethod" },
+      "description": "User-scoped payment methods (Cash, Bank, bKash, Nagad, Rocket)"
+    },
+    "/users/{userId}/budgets/{budgetId}": {
+      "schema": { "$ref": "#/entities/Budget" },
+      "description": "User-scoped monthly category budgets"
+    },
+    "/users/{userId}/savings_goals/{goalId}": {
+      "schema": { "$ref": "#/entities/SavingsGoal" },
+      "description": "User-scoped savings goals"
+    },
+    "/users/{userId}/debts/{debtId}": {
+      "schema": { "$ref": "#/entities/Debt" },
+      "description": "User-scoped lent and borrowed debt records"
+    },
+    "/users/{userId}/bill_reminders/{billId}": {
+      "schema": { "$ref": "#/entities/BillReminder" },
+      "description": "User-scoped bill payment reminders"
+    }
+  }
+}

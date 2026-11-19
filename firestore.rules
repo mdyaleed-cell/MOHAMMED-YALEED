@@ -1,0 +1,245 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Hardened Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidNumber(val, minVal, maxVal) {
+      return (val is int || val is float) && val >= minVal && val <= maxVal;
+    }
+
+    function isValidPositiveNumber(val, maxVal) {
+      return (val is int || val is float) && val > 0 && val <= maxVal;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    // --- Entity Validation Helpers ---
+    function isValidTransaction(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.type in ['INCOME', 'EXPENSE'] &&
+             isValidPositiveNumber(data.amount, 1000000000) &&
+             data.categoryId is string && data.categoryId.size() >= 1 && data.categoryId.size() <= 128 &&
+             data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 60 &&
+             data.paymentMethodId is string && data.paymentMethodId.size() >= 1 && data.paymentMethodId.size() <= 128 &&
+             data.paymentMethodName is string && data.paymentMethodName.size() >= 1 && data.paymentMethodName.size() <= 60 &&
+             data.note is string && data.note.size() <= 200 &&
+             data.dateEpochMillis is int && data.dateEpochMillis > 0 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCategory(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 50 &&
+             data.type in ['INCOME', 'EXPENSE'] &&
+             data.iconKey is string && data.iconKey.size() >= 1 && data.iconKey.size() <= 40 &&
+             data.colorHex is int &&
+             data.defaultCategory is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidPaymentMethod(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 50 &&
+             data.methodType in ['CASH', 'BANK', 'MOBILE_BANKING'] &&
+             isValidNumber(data.openingBalance, 0, 1000000000) &&
+             data.colorHex is int &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidBudget(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.categoryId is string && data.categoryId.size() >= 1 && data.categoryId.size() <= 128 &&
+             data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 60 &&
+             data.monthKey is string && data.monthKey.size() == 7 && data.monthKey.matches('^[0-9]{4}-[0-9]{2}$') &&
+             isValidPositiveNumber(data.limitAmount, 1000000000) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidSavingsGoal(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 80 &&
+             isValidPositiveNumber(data.targetAmount, 1000000000) &&
+             isValidNumber(data.savedAmount, 0, 1000000000) &&
+             data.targetDateEpochMillis is int && data.targetDateEpochMillis >= 0 &&
+             data.colorHex is int &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidDebt(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.personName is string && data.personName.size() >= 1 && data.personName.size() <= 80 &&
+             data.phone is string && data.phone.size() <= 30 &&
+             data.debtType in ['LENT', 'BORROWED'] &&
+             isValidPositiveNumber(data.amount, 1000000000) &&
+             isValidNumber(data.paidAmount, 0, 1000000000) &&
+             data.paidAmount <= data.amount &&
+             data.note is string && data.note.size() <= 200 &&
+             data.dueDateEpochMillis is int && data.dueDateEpochMillis >= 0 &&
+             data.status in ['ACTIVE', 'SETTLED'] &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidBillReminder(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 80 &&
+             isValidPositiveNumber(data.amount, 1000000000) &&
+             data.dueDayOfMonth is int && data.dueDayOfMonth >= 1 && data.dueDayOfMonth <= 31 &&
+             data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 60 &&
+             data.recurringMonthly is bool &&
+             data.reminderEnabled is bool &&
+             data.lastPaidMonthKey is string && (data.lastPaidMonthKey.size() == 0 || data.lastPaidMonthKey.matches('^[0-9]{4}-[0-9]{2}$')) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    // --- User-Scoped Collections ---
+    match /users/{userId} {
+      // 1. Transactions
+      match /transactions/{transactionId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(transactionId);
+        allow create: if isOwner(userId) && isValidId(transactionId) &&
+                         incoming().keys().hasAll(['userId', 'type', 'amount', 'categoryId', 'categoryName', 'paymentMethodId', 'paymentMethodName', 'note', 'dateEpochMillis', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'type', 'amount', 'categoryId', 'categoryName', 'paymentMethodId', 'paymentMethodName', 'note', 'dateEpochMillis', 'createdAt', 'updatedAt']) &&
+                         isValidTransaction(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(transactionId) &&
+                         isValidTransaction(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['type', 'amount', 'categoryId', 'categoryName', 'paymentMethodId', 'paymentMethodName', 'note', 'dateEpochMillis', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(transactionId);
+      }
+
+      // 2. Categories
+      match /categories/{categoryId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(categoryId);
+        allow create: if isOwner(userId) && isValidId(categoryId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'type', 'iconKey', 'colorHex', 'defaultCategory', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'type', 'iconKey', 'colorHex', 'defaultCategory', 'createdAt', 'updatedAt']) &&
+                         isValidCategory(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(categoryId) &&
+                         isValidCategory(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'type', 'iconKey', 'colorHex', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(categoryId);
+      }
+
+      // 3. Payment Methods
+      match /payment_methods/{methodId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(methodId);
+        allow create: if isOwner(userId) && isValidId(methodId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'methodType', 'openingBalance', 'colorHex', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'methodType', 'openingBalance', 'colorHex', 'createdAt', 'updatedAt']) &&
+                         isValidPaymentMethod(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(methodId) &&
+                         isValidPaymentMethod(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'methodType', 'openingBalance', 'colorHex', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(methodId);
+      }
+
+      // 4. Monthly Budgets
+      match /budgets/{budgetId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(budgetId);
+        allow create: if isOwner(userId) && isValidId(budgetId) &&
+                         incoming().keys().hasAll(['userId', 'categoryId', 'categoryName', 'monthKey', 'limitAmount', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'categoryId', 'categoryName', 'monthKey', 'limitAmount', 'createdAt', 'updatedAt']) &&
+                         isValidBudget(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(budgetId) &&
+                         isValidBudget(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['categoryName', 'limitAmount', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(budgetId);
+      }
+
+      // 5. Savings Goals
+      match /savings_goals/{goalId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(goalId);
+        allow create: if isOwner(userId) && isValidId(goalId) &&
+                         incoming().keys().hasAll(['userId', 'title', 'targetAmount', 'savedAmount', 'targetDateEpochMillis', 'colorHex', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'title', 'targetAmount', 'savedAmount', 'targetDateEpochMillis', 'colorHex', 'createdAt', 'updatedAt']) &&
+                         isValidSavingsGoal(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(goalId) &&
+                         isValidSavingsGoal(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'targetAmount', 'savedAmount', 'targetDateEpochMillis', 'colorHex', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(goalId);
+      }
+
+      // 6. Debts / Loans
+      match /debts/{debtId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(debtId);
+        allow create: if isOwner(userId) && isValidId(debtId) &&
+                         incoming().keys().hasAll(['userId', 'personName', 'phone', 'debtType', 'amount', 'paidAmount', 'note', 'dueDateEpochMillis', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'personName', 'phone', 'debtType', 'amount', 'paidAmount', 'note', 'dueDateEpochMillis', 'status', 'createdAt', 'updatedAt']) &&
+                         isValidDebt(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(debtId) &&
+                         isValidDebt(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           (existing().status == 'ACTIVE' && incoming().diff(existing()).affectedKeys().hasOnly(['personName', 'phone', 'debtType', 'amount', 'paidAmount', 'note', 'dueDateEpochMillis', 'status', 'updatedAt'])) ||
+                           (existing().status == 'SETTLED' && incoming().status == 'ACTIVE' && incoming().diff(existing()).affectedKeys().hasOnly(['paidAmount', 'status', 'updatedAt']))
+                         );
+        allow delete: if isOwner(userId) && isValidId(debtId);
+      }
+
+      // 7. Bill Reminders
+      match /bill_reminders/{billId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(billId);
+        allow create: if isOwner(userId) && isValidId(billId) &&
+                         incoming().keys().hasAll(['userId', 'title', 'amount', 'dueDayOfMonth', 'categoryName', 'recurringMonthly', 'reminderEnabled', 'lastPaidMonthKey', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'title', 'amount', 'dueDayOfMonth', 'categoryName', 'recurringMonthly', 'reminderEnabled', 'lastPaidMonthKey', 'createdAt', 'updatedAt']) &&
+                         isValidBillReminder(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(billId) &&
+                         isValidBillReminder(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'amount', 'dueDayOfMonth', 'categoryName', 'recurringMonthly', 'reminderEnabled', 'lastPaidMonthKey', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(billId);
+      }
+    }
+  }
+}
